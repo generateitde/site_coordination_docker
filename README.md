@@ -91,6 +91,12 @@ END_BOOKING_REQUEST_V1
 python -m site_coordination.cli init-db
 ```
 
+2. Start the Docker stack with automatic HOST_IP detection (for QR code URLs):
+
+```
+./scripts/docker-up.sh
+```
+
 2. Process a single email body from a file:
 
 ```
