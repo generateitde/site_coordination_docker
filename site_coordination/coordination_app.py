@@ -33,6 +33,7 @@ from site_coordination.notifications import (
 )
 from site_coordination.passwords import generate_password
 from site_coordination.processor import handle_access_request, handle_booking_request
+from site_coordination.sharepoint_sync import start_sharepoint_sync
 
 
 def create_app() -> Flask:
@@ -54,6 +55,7 @@ def create_app() -> Flask:
     )
     app.secret_key = os.environ.get("SITE_COORDINATION_SECRET", "dev-secret")
     _ensure_database()
+    app.extensions["sharepoint_sync"] = start_sharepoint_sync(app.logger)
 
     @app.get("/")
     def index() -> str:
@@ -635,6 +637,21 @@ def _extract_week(timeslot_raw: str) -> str:
     return parts[0] if parts else "unknown"
 
 
+def _debug_enabled() -> bool:
+    return os.environ.get("SITE_COORDINATION_DEBUG", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 if __name__ == "__main__":
     app = create_app()
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+    port = int(os.environ.get("PORT", "5000"))
+    print(f"Coordination app running on http://0.0.0.0:{port}")
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=_debug_enabled(),
+    )
