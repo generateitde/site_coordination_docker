@@ -393,6 +393,21 @@ def _build_ticket_pdf(ticket: dict) -> bytes:
     return bytes(pdf.output(dest="S"))
 
 
+def _debug_enabled() -> bool:
+    return os.environ.get("SITE_COORDINATION_DEBUG", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 if __name__ == "__main__":
     app = create_app()
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+    port = int(os.environ.get("PORT", "5000"))
+    print(f"Check-in app running on http://0.0.0.0:{port}")
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=_debug_enabled(),
+    )
