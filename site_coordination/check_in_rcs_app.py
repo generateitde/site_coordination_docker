@@ -310,6 +310,7 @@ def _ensure_database() -> None:
         db.init_db(connection)
         db.ensure_users_credentials_column(connection)
         db.ensure_activity_research_name_columns(connection)
+        db.ensure_booking_request_columns(connection)
 
 
 def _build_qr_code_data_uri(url: str) -> str | None:
@@ -327,6 +328,9 @@ def _get_base_url(request_url: str) -> str:
     base_url = os.environ.get("SITE_COORDINATION_BASE_URL")
     if base_url:
         return base_url
+    host_ip = _env_host_ip()
+    if host_ip:
+        return _build_url(host_ip, request_url)
     return _resolve_base_url(request_url)
 
 
@@ -348,6 +352,23 @@ def _local_network_url(request_url: str) -> str | None:
     if not ip:
         return None
     return f"http://{ip}:{port}/"
+
+
+def _env_host_ip() -> str | None:
+    for key in ("SITE_COORDINATION_HOST_IP", "HOST_IP"):
+        value = os.environ.get(key, "").strip()
+        if value:
+            return value
+    return None
+
+
+def _build_url(host_ip: str, request_url: str) -> str:
+    try:
+        host = request_url.split("//", 1)[1].split("/", 1)[0]
+        port = host.split(":", 1)[1] if ":" in host else "5000"
+    except IndexError:
+        port = "5000"
+    return f"http://{host_ip}:{port}/"
 
 
 def _get_lan_ip() -> str | None:

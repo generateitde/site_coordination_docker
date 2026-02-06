@@ -241,6 +241,7 @@ def _ensure_database() -> None:
         db.init_db(connection)
         db.ensure_users_credentials_column(connection)
         db.ensure_activity_research_name_columns(connection)
+        db.ensure_booking_request_columns(connection)
 
 
 def _fetch_registrations(query: str) -> list[sqlite3.Row]:
