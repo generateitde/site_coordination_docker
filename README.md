@@ -75,7 +75,8 @@ project=[project]
 timeslot_raw=[timeslot]
 duration_weeks=[duration_weeks]
 
-indoor=[indoor]
+indoor_laptop_workspace=[indoor_workspace]
+warehouse_storage_space=[warehouse_storage]
 outdoor=[outdoor]
 outdoor_type=[outdoor_type]
 equipment=[equipment]
@@ -88,6 +89,12 @@ END_BOOKING_REQUEST_V1
 
 ```
 python -m site_coordination.cli init-db
+```
+
+2. Start the Docker stack with automatic HOST_IP detection (for QR code URLs):
+
+```
+./scripts/docker-up.sh
 ```
 
 2. Process a single email body from a file:

@@ -28,7 +28,8 @@ class BookingRecord:
     project: str
     timeslot_raw: str
     duration_weeks: str
-    indoor: str
+    indoor_laptop_workspace: str
+    warehouse_storage_space: str
     outdoor: str
     outdoor_type: str
     equipment: str
@@ -88,7 +89,8 @@ def init_db(connection: sqlite3.Connection) -> None:
             project TEXT NOT NULL,
             timeslot_raw TEXT NOT NULL,
             duration_weeks TEXT NOT NULL,
-            indoor TEXT NOT NULL,
+            indoor_laptop_workspace TEXT NOT NULL,
+            warehouse_storage_space TEXT NOT NULL,
             outdoor TEXT NOT NULL,
             outdoor_type TEXT NOT NULL,
             equipment TEXT NOT NULL,
@@ -161,6 +163,30 @@ def ensure_activity_research_name_columns(connection: sqlite3.Connection) -> Non
         connection.commit()
 
 
+def ensure_booking_request_columns(connection: sqlite3.Connection) -> None:
+    """Ensure bookings table matches the current booking request schema."""
+
+    columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(bookings)").fetchall()
+    }
+    changed = False
+    if "indoor" in columns and "indoor_laptop_workspace" not in columns:
+        connection.execute(
+            "ALTER TABLE bookings RENAME COLUMN indoor TO indoor_laptop_workspace"
+        )
+        columns.remove("indoor")
+        columns.add("indoor_laptop_workspace")
+        changed = True
+    if "warehouse_storage_space" not in columns:
+        connection.execute(
+            "ALTER TABLE bookings ADD COLUMN warehouse_storage_space TEXT NOT NULL DEFAULT ''"
+        )
+        changed = True
+    if changed:
+        connection.commit()
+
+
 def insert_registration(connection: sqlite3.Connection, record: RegistrationRecord) -> None:
     """Insert a registration record."""
 
@@ -226,8 +252,9 @@ def insert_booking(connection: sqlite3.Connection, record: BookingRecord) -> Non
         """
         INSERT INTO bookings (
             email, first_name, last_name, project, timeslot_raw, duration_weeks,
-            indoor, outdoor, outdoor_type, equipment, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            indoor_laptop_workspace, warehouse_storage_space, outdoor, outdoor_type,
+            equipment, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             record.email,
@@ -236,7 +263,8 @@ def insert_booking(connection: sqlite3.Connection, record: BookingRecord) -> Non
             record.project,
             record.timeslot_raw,
             record.duration_weeks,
-            record.indoor,
+            record.indoor_laptop_workspace,
+            record.warehouse_storage_space,
             record.outdoor,
             record.outdoor_type,
             record.equipment,

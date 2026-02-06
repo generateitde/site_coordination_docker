@@ -34,7 +34,8 @@ class BookingRequest:
     project: str
     timeslot_raw: str
     duration_weeks: str
-    indoor: str
+    indoor_laptop_workspace: str
+    warehouse_storage_space: str
     outdoor: str
     outdoor_type: str
     equipment: str
@@ -121,7 +122,8 @@ def parse_booking_request(body: str) -> BookingRequest:
         "project",
         "timeslot_raw",
         "duration_weeks",
-        "indoor",
+        "indoor_laptop_workspace",
+        "warehouse_storage_space",
         "outdoor",
         "outdoor_type",
         "equipment",
@@ -137,7 +139,8 @@ def parse_booking_request(body: str) -> BookingRequest:
         project=data["project"],
         timeslot_raw=data["timeslot_raw"],
         duration_weeks=data["duration_weeks"],
-        indoor=data["indoor"],
+        indoor_laptop_workspace=data["indoor_laptop_workspace"],
+        warehouse_storage_space=data["warehouse_storage_space"],
         outdoor=data["outdoor"],
         outdoor_type=data["outdoor_type"],
         equipment=data["equipment"],

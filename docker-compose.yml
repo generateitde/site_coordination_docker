@@ -7,6 +7,7 @@ services:
     environment:
       PORT: "5001"
       SITE_COORDINATION_DB: /app/database/site_coordination.sqlite
+      SITE_COORDINATION_HOST_IP: ${HOST_IP:-}
     env_file:
       - .env
     volumes:
