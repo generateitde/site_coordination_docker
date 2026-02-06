@@ -1,0 +1,19 @@
+# Core data handling
+numpy>=1.26
+pandas>=2.2
+
+# Plotting / analytics
+matplotlib>=3.8
+seaborn>=0.13
+
+# Database access (SQLite is provided by Python's standard library via sqlite3)
+sqlalchemy>=2.0
+
+# Web app
+flask>=3.0
+qrcode[pil]>=7.4
+fpdf2>=2.7
+
+# Power Automate integration
+requests>=2.32
+python-dotenv>=1.0

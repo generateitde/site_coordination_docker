@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <h2>Registrations</h2>
+    <p>Registrations can be entered manually or managed.</p>
+    <div class="actions-grid">
+      <a class="button" href="{{ url_for('registration_manual') }}">Enter manually</a>
+      <a class="button" href="{{ url_for('registrations_manage') }}">Manage</a>
+    </div>
+    <a class="link" href="{{ url_for('index') }}">Back</a>
+  </section>
+{% endblock %}
