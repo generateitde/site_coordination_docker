@@ -152,6 +152,10 @@ docker compose up -d checkin
 
 - Läuft dauerhaft und startet nach Server-Reboot automatisch (durch `restart: unless-stopped`).
 - URL: `http://<server>:5001`
+- Hinweis: Bei `-d` läuft der Container im Hintergrund. Die URL-Ausgabe steht dann im Log:
+  ```bash
+  docker compose logs -f checkin
+  ```
 
 ### Coordination App (manuell starten)
 
@@ -163,6 +167,10 @@ docker compose up -d coordination
 - Beenden:
   ```bash
   docker compose stop coordination
+  ```
+- Hinweis: Bei `-d` läuft der Container im Hintergrund. Die URL-Ausgabe steht dann im Log:
+  ```bash
+  docker compose logs -f coordination
   ```
 
 ## SharePoint Backup (Coordination App)

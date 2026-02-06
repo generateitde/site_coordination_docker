@@ -648,8 +648,10 @@ def _debug_enabled() -> bool:
 
 if __name__ == "__main__":
     app = create_app()
+    port = int(os.environ.get("PORT", "5000"))
+    print(f"Coordination app running on http://0.0.0.0:{port}")
     app.run(
         host="0.0.0.0",
-        port=int(os.environ.get("PORT", "5000")),
+        port=port,
         debug=_debug_enabled(),
     )
