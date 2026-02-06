@@ -120,6 +120,76 @@ python -m site_coordination.cli approve user@example.com
 python -m site_coordination.cli reject user@example.com
 ```
 
+## Docker / Containerisierung
+
+Die App kann komplett über Docker Compose betrieben werden. Es gibt zwei Services:
+
+- **checkin** (läuft dauerhaft, Restart auf Server-Neustart)
+- **coordination** (manuell starten, z.B. nach Remote-Login)
+
+### Voraussetzungen
+
+- Docker + Docker Compose
+
+### Erster Start (inkl. DB)
+
+1. Repository klonen und in das Projektverzeichnis wechseln.
+2. `.env` anlegen:
+   ```bash
+   cp .env.example .env
+   ```
+3. (Optional) Datenbank initialisieren:
+   ```bash
+   docker compose run --rm coordination python -m site_coordination.cli init-db
+   ```
+   Die Datenbank liegt danach in `./database/site_coordination.sqlite`.
+
+### Check-In App (immer aktiv)
+
+```bash
+docker compose up -d checkin
+```
+
+- Läuft dauerhaft und startet nach Server-Reboot automatisch (durch `restart: unless-stopped`).
+- URL: `http://<server>:5001`
+
+### Coordination App (manuell starten)
+
+```bash
+docker compose up -d coordination
+```
+
+- URL: `http://<server>:5000`
+- Beenden:
+  ```bash
+  docker compose stop coordination
+  ```
+
+## SharePoint Backup (Coordination App)
+
+Die Coordination App kann die SQLite-Datenbank zyklisch auf SharePoint sichern. Dafür müssen folgende
+Variablen in der `.env` gesetzt werden:
+
+```ini
+SITE_COORDINATION_SHAREPOINT_ENABLED=true
+SITE_COORDINATION_SHAREPOINT_TENANT_ID=<Azure-Tenant-ID>
+SITE_COORDINATION_SHAREPOINT_CLIENT_ID=<App-Client-ID>
+SITE_COORDINATION_SHAREPOINT_CLIENT_SECRET=<Client-Secret>
+SITE_COORDINATION_SHAREPOINT_SITE_ID=<SharePoint Site ID>
+SITE_COORDINATION_SHAREPOINT_DRIVE_ID=<Drive ID>
+SITE_COORDINATION_SHAREPOINT_REMOTE_PATH=backups/site_coordination.sqlite
+SITE_COORDINATION_SHAREPOINT_INTERVAL_SECONDS=300
+```
+
+**Woher kommen die Werte?**
+
+- **Tenant ID, Client ID, Client Secret**: aus einer App-Registrierung in Azure AD (Client-Credentials Flow).
+- **Site ID**: `GET https://graph.microsoft.com/v1.0/sites?search=<site-name>` (MS Graph).
+- **Drive ID**: `GET https://graph.microsoft.com/v1.0/sites/{site-id}/drives`.
+- **Remote Path**: Zielpfad in der SharePoint-Dokumentbibliothek.
+
+Wenn `SITE_COORDINATION_SHAREPOINT_ENABLED=false` ist oder ein Wert fehlt, wird kein Upload gestartet.
+
 ## Web App Usage
 
 Note: This web app is **not** the check-in/check-out experience. It is a coordination dashboard
@@ -235,7 +305,8 @@ den Token und die E-Mail-Daten an den Flow. Für den lokalen Start ist nur `FLOW
    ```
 
 **Wichtig:** Die `FLOW_URL` ist in `src/email_automation/config.py` als Konstante hinterlegt.
-Wenn der Flow neu erstellt wird, muss die URL dort aktualisiert werden.
+Wenn der Flow neu erstellt wird, muss die URL dort aktualisiert werden. Zusätzlich muss
+`FLOW_SECRET` in der `.env` gesetzt werden, damit der Token-Check im Flow klappt.
 
 ## Next Steps
 
