@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from email.message import EmailMessage
-import smtplib
-from typing import Mapping
+from typing import Mapping, Optional
 
 from .config import SmtpConfig
+from flow_automation.email_flow import send_email_via_flow
 
 
 def build_credentials_email(
@@ -165,12 +165,20 @@ def build_booking_denial_email(recipient: str, booking: Mapping[str, str]) -> Em
     return message
 
 
-def send_email(config: SmtpConfig, message: EmailMessage) -> None:
-    """Send an email via SMTP."""
+def send_email(config: Optional[SmtpConfig], message: EmailMessage) -> None:
+    """Send an email via Power Automate."""
 
-    message["From"] = config.sender_email
-    with smtplib.SMTP(config.host, config.port) as server:
-        server.starttls()
-        if config.user:
-            server.login(config.user, config.password)
-        server.send_message(message)
+    recipient = message["To"] or ""
+    subject = message["Subject"] or ""
+    body = message.get_content()
+    if not recipient or not subject or not body:
+        raise RuntimeError(
+            "Email message is missing required fields (To, Subject, or Body)."
+        )
+    content_type = "html" if message.get_content_subtype() == "html" else "text"
+    send_email_via_flow(
+        to=recipient,
+        subject=subject,
+        body=body,
+        content_type=content_type,
+    )

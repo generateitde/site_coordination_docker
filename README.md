@@ -108,9 +108,6 @@ python -m site_coordination.cli process-imap
 4. Approve a registration and send credentials:
 
 ```
-export SITE_COORDINATION_SMTP_HOST=smtp.example.com
-export SITE_COORDINATION_SMTP_USER=wordpress@example.com
-export SITE_COORDINATION_SMTP_PASSWORD=secret
 python -m site_coordination.cli approve user@example.com
 ```
 
@@ -173,30 +170,91 @@ docker compose up -d coordination
   docker compose logs -f coordination
   ```
 
-## SharePoint Backup (Coordination App)
+## Power Automate Integration
 
-Die Coordination App kann die SQLite-Datenbank zyklisch auf SharePoint sichern. Dafür müssen folgende
-Variablen in der `.env` gesetzt werden:
+Die Microsoft-365-Integrationen laufen ohne Entra App Registration oder Graph OAuth. Stattdessen
+werden zwei Power-Automate-Flows per HTTP-Trigger aufgerufen. Python sendet nur HTTP-POSTs und
+braucht lokal lediglich zwei Secrets in der `.env`.
 
-```ini
-SITE_COORDINATION_SHAREPOINT_ENABLED=true
-SITE_COORDINATION_SHAREPOINT_TENANT_ID=<Azure-Tenant-ID>
-SITE_COORDINATION_SHAREPOINT_CLIENT_ID=<App-Client-ID>
-SITE_COORDINATION_SHAREPOINT_CLIENT_SECRET=<Client-Secret>
-SITE_COORDINATION_SHAREPOINT_SITE_ID=<SharePoint Site ID>
-SITE_COORDINATION_SHAREPOINT_DRIVE_ID=<Drive ID>
-SITE_COORDINATION_SHAREPOINT_REMOTE_PATH=backups/site_coordination.sqlite
-SITE_COORDINATION_SHAREPOINT_INTERVAL_SECONDS=300
+### 1) Email Flow
+
+**Trigger:** When an HTTP request is received
+
+**Request Body Schema**
+```json
+{
+  "type":"object",
+  "properties":{
+    "token":{"type":"string"},
+    "to":{"type":"string"},
+    "subject":{"type":"string"},
+    "body":{"type":"string"},
+    "contentType":{"type":"string"}
+  },
+  "required":["token","to","subject","body"]
+}
 ```
 
-**Woher kommen die Werte?**
+**Security**
+- Condition: `triggerBody()['token'] == <EMAIL_FLOW_SECRET>`
+- Else: Response 401
 
-- **Tenant ID, Client ID, Client Secret**: aus einer App-Registrierung in Azure AD (Client-Credentials Flow).
-- **Site ID**: `GET https://graph.microsoft.com/v1.0/sites?search=<site-name>` (MS Graph).
-- **Drive ID**: `GET https://graph.microsoft.com/v1.0/sites/{site-id}/drives`.
-- **Remote Path**: Zielpfad in der SharePoint-Dokumentbibliothek.
+**Action**
+- Send an email (V2)
+- To, Subject, Body aus Trigger
+- Is HTML: `equals(triggerBody()['contentType'],'html')`
 
-Wenn `SITE_COORDINATION_SHAREPOINT_ENABLED=false` ist oder ein Wert fehlt, wird kein Upload gestartet.
+### 2) DB Backup Flow (SharePoint)
+
+**Trigger:** When an HTTP request is received
+
+**Request Body Schema**
+```json
+{
+  "type":"object",
+  "properties":{
+    "token":{"type":"string"},
+    "filename":{"type":"string"},
+    "content":{"type":"string"}
+  },
+  "required":["token","filename","content"]
+}
+```
+
+**Security**
+- Condition: `triggerBody()['token'] == <DB_BACKUP_FLOW_SECRET>`
+- Else: Response 401
+
+**Action**
+- SharePoint "Create file"
+- File name: `filename`
+- File content: `base64ToBinary(triggerBody()['content'])`
+- Folder: `/backups` (oder konfigurierbar im Flow)
+
+### Lokales Setup
+
+1. Virtuelle Umgebung erstellen und Abhängigkeiten installieren:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+2. `.env` anlegen:
+   ```bash
+   cp .env.example .env
+   ```
+3. Secrets setzen (nur diese zwei Werte):
+   ```
+   EMAIL_FLOW_SECRET=...
+   DB_BACKUP_FLOW_SECRET=...
+   ```
+4. Web-App starten:
+   ```bash
+   python -m site_coordination.coordination_app
+   ```
+
+**Hinweis:** Die Flow-URLs sind in `src/flow_automation/config.py` als Konstanten hinterlegt. Wenn
+ein Flow neu erstellt wird, muss die URL dort aktualisiert werden.
 
 ## Web App Usage
 
@@ -210,13 +268,10 @@ is insufficient or needs manual oversight.
 pip install -r requirements.txt
 ```
 
-2. (Optional) Configure environment variables for the SQLite path and SMTP:
+2. (Optional) Configure environment variables for the SQLite path:
 
 ```
 export SITE_COORDINATION_DB=site_coordination.sqlite
-export SITE_COORDINATION_SMTP_HOST=smtp.example.com
-export SITE_COORDINATION_SMTP_USER=wordpress@example.com
-export SITE_COORDINATION_SMTP_PASSWORD=secret
 ```
 
 3. Start the coordination web app from the repository root:
@@ -254,67 +309,9 @@ From the dashboard you can:
 - `SITE_COORDINATION_ENV`: Optional path to the `.env` file (default: `.env`).
 - `SITE_COORDINATION_IMAP_HOST`, `SITE_COORDINATION_IMAP_USER`, `SITE_COORDINATION_IMAP_PASSWORD`,
   `SITE_COORDINATION_IMAP_MAILBOX`.
-- `SITE_COORDINATION_SMTP_HOST`, `SITE_COORDINATION_SMTP_USER`, `SITE_COORDINATION_SMTP_PASSWORD`,
-  `SITE_COORDINATION_SMTP_PORT`, `SITE_COORDINATION_SENDER_EMAIL`.
+- `EMAIL_FLOW_SECRET`, `DB_BACKUP_FLOW_SECRET` (Power Automate HTTP-Trigger).
 
-> **Note:** Update the credentials in the `.env` file before using the IMAP/SMTP workflows.
-
-## Automatisierter Mailversand
-
-Der Mailversand wird über einen Power-Automate-Flow mit HTTP-Trigger ausgelöst. Python sendet
-den Token und die E-Mail-Daten an den Flow. Für den lokalen Start ist nur `FLOW_SECRET` in der
-`.env` nötig; die `FLOW_URL` ist als Konstante im Code hinterlegt.
-
-### Power Automate Flow Setup
-
-1. Erstelle einen **Instant Cloud Flow** mit **When an HTTP request is received**.
-2. Verwende folgendes **Request Body Schema**:
-   ```json
-   {
-     "type": "object",
-     "properties": {
-       "token": {"type":"string"},
-       "to": {"type":"string"},
-       "subject": {"type":"string"},
-       "body": {"type":"string"},
-       "contentType": {"type":"string"}
-     },
-     "required": ["token","to","subject","body"]
-   }
-   ```
-3. Füge eine **Condition** hinzu (Token-Check):
-   - Expression: `@not(equals(triggerBody()?['token'], '<SECRET>'))`
-   - **If true** → **Response** mit Status **401** (Unauthorized).
-4. Im **Else**-Zweig:
-   - Aktion **Send an email (V2)**:
-     - **To**: `@{triggerBody()?['to']}`
-     - **Subject**: `@{triggerBody()?['subject']}`
-     - **Body**: `@{triggerBody()?['body']}`
-     - **Is HTML**: `@equals(triggerBody()?['contentType'],'html')`
-
-> Hinweis: Ersetze `<SECRET>` im Flow durch denselben Wert wie `FLOW_SECRET` in der `.env`.
-
-### Lokale Schritte
-
-1. Virtuelle Umgebung erstellen (optional) und Abhängigkeiten installieren:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-2. `.env` anlegen:
-   ```bash
-   cp .env.example .env
-   ```
-3. `FLOW_SECRET` in `.env` setzen (muss mit dem Flow übereinstimmen).
-4. Web-App starten:
-   ```bash
-   python -m site_coordination.coordination_app
-   ```
-
-**Wichtig:** Die `FLOW_URL` ist in `src/email_automation/config.py` als Konstante hinterlegt.
-Wenn der Flow neu erstellt wird, muss die URL dort aktualisiert werden. Zusätzlich muss
-`FLOW_SECRET` in der `.env` gesetzt werden, damit der Token-Check im Flow klappt.
+> **Note:** Update the credentials in the `.env` file before using the IMAP workflows.
 
 ## Next Steps
 

@@ -412,9 +412,6 @@ def _deny_booking(booking_id: int) -> None:
 
 def _send_credentials_email(email: str, password: str) -> bool:
     config = load_smtp_config()
-    if not config.host:
-        flash("SMTP host not configured; credentials email not sent.", "error")
-        return False
     with get_connection() as connection:
         row = connection.execute(
             "SELECT first_name, last_name FROM users WHERE email = ?",
@@ -429,7 +426,11 @@ def _send_credentials_email(email: str, password: str) -> bool:
         first_name=row["first_name"],
         last_name=row["last_name"],
     )
-    send_email(config, message)
+    try:
+        send_email(config, message)
+    except RuntimeError as exc:
+        flash(f"Email flow error: {exc}", "error")
+        return False
     return True
 
 
@@ -475,14 +476,14 @@ def _build_credentials_preview(email: str) -> Optional[dict]:
 
 def _send_booking_email(email: str, row: sqlite3.Row, action: str) -> None:
     config = load_smtp_config()
-    if not config.host:
-        flash("SMTP host not configured; booking email not sent.", "error")
-        return
     if action == "deny":
         message = build_booking_denial_email(email, row)
     else:
         message = build_booking_confirmation_email(email, row)
-    send_email(config, message)
+    try:
+        send_email(config, message)
+    except RuntimeError as exc:
+        flash(f"Email flow error: {exc}", "error")
 
 
 def _build_booking_preview(booking_id: str, action: str) -> Optional[dict]:
