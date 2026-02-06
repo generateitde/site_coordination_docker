@@ -112,7 +112,7 @@ export SITE_COORDINATION_IMAP_PASSWORD=secret
 python -m site_coordination.cli process-imap
 ```
 
-4. Approve a registration and send credentials:
+4. Approve a registration and send credentials (CLI uses SMTP):
 
 ```
 python -m site_coordination.cli approve user@example.com
@@ -123,6 +123,9 @@ python -m site_coordination.cli approve user@example.com
 ```
 python -m site_coordination.cli reject user@example.com
 ```
+
+> Hinweis: Die Coordination Web-App nutzt für den Mailversand den Power-Automate-Flow (siehe
+> Abschnitt „Automatisierter Mailversand“) und nicht die SMTP-CLI-Variante.
 
 ## Docker / Containerisierung
 
